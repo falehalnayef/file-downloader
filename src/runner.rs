@@ -27,6 +27,8 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         handle.join().unwrap();
     }
 
+    utils::combine_chunks(&output_file, threads)?;
+
     println!("URL: {}", url);
     println!("Threads: {}", threads);
     println!("Output file: {}", output_file);

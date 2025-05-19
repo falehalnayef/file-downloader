@@ -4,7 +4,7 @@ use reqwest::blocking::Client;
 use reqwest::header::{ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE, RANGE};
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::time::Duration;
 pub struct FileInfo {
     pub content_length: u64,
@@ -127,5 +127,25 @@ pub fn download_chunk(url: &str, range: (u64, u64), part_id: usize) -> Result<()
 
     println!("Downloaded chunk {}: {} - {}", part_id, range.0, range.1);
 
+    Ok(())
+}
+
+pub fn combine_chunks(filename: &str, total_parts: usize) -> Result<(), Box<dyn Error>> {
+    let mut output = File::create(filename)?;
+
+    for i in 0..total_parts {
+        let part_name = format!("part_{}", i);
+        let mut part_file = File::open(&part_name)?;
+
+        let mut buffer = Vec::new();
+        part_file.read_to_end(&mut buffer)?;
+
+        output.write_all(&buffer)?;
+        std::fs::remove_file(&part_name)?;
+
+        println!("Merged {}", part_name);
+    }
+
+    println!("✅ Successfully combined into '{}'", filename);
     Ok(())
 }
