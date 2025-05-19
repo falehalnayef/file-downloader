@@ -1,9 +1,14 @@
 use url::Url;
 
 use reqwest::blocking::Client;
-use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE};
+use reqwest::header::{ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE};
 use std::time::Duration;
 
+pub struct FileInfo {
+    pub content_length: u64,
+    pub file_name: String,
+    pub supports_ranges: bool,
+}
 pub fn validate_url(url_str: &str) -> Result<Url, String> {
     let url = Url::parse(url_str).map_err(|e| format!("Invalid URL format: {}", e))?;
 
@@ -13,7 +18,7 @@ pub fn validate_url(url_str: &str) -> Result<Url, String> {
     }
 }
 
-pub fn is_valid_file_url(url: &str) -> Result<(), String> {
+pub fn get_file_info(url: &str) -> Result<FileInfo, String> {
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
@@ -39,9 +44,46 @@ pub fn is_valid_file_url(url: &str) -> Result<(), String> {
         return Err("URL points to an HTML page, not a file.".to_string());
     }
 
-    if headers.get(CONTENT_LENGTH).is_none() {
-        return Err("Missing Content-Length, can't determine file size.".to_string());
-    }
+    let content_length = headers
+        .get(CONTENT_LENGTH)
+        .ok_or("Missing Content-Length header")?
+        .to_str()
+        .unwrap()
+        .parse::<u64>()
+        .unwrap();
 
-    Ok(())
+    let file_name = if let Some(disposition) = response.headers().get(CONTENT_DISPOSITION) {
+        let dispo_str = disposition;
+
+        extract_filename_from_disposition(dispo_str.to_str().unwrap())
+            .unwrap_or_else(|| "downloaded_file".to_string())
+    } else {
+        "downloaded_file".to_string()
+    };
+    let supports_ranges = response
+        .headers()
+        .get(ACCEPT_RANGES)
+        .map_or(false, |v| v == "bytes");
+
+    Ok(FileInfo {
+        content_length,
+        file_name,
+        supports_ranges,
+    })
 }
+fn extract_filename_from_disposition(dispo: &str) -> Option<String> {
+    dispo.split(';').find_map(|part| {
+        let part = part.trim();
+        if part.starts_with("filename=") {
+            Some(
+                part.trim_start_matches("filename=")
+                    .trim_matches('"')
+                    .to_string(),
+            )
+        } else {
+            None
+        }
+    })
+}
+
+pub fn calculate_ranges() {}
