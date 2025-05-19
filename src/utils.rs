@@ -86,4 +86,23 @@ fn extract_filename_from_disposition(dispo: &str) -> Option<String> {
     })
 }
 
-pub fn calculate_ranges() {}
+pub fn calculate_ranges(size: u64, threads: u32) -> Vec<(u64, u64)> {
+    let mut ranges = Vec::new();
+
+    let threads = threads.max(1);
+    let chunk_size = size / threads as u64;
+    let mut start = 0;
+
+    for i in 0..threads {
+        let mut end = start + chunk_size - 1;
+
+        if i == threads - 1 {
+            end = size - 1;
+        }
+
+        ranges.push((start, end));
+        start = end + 1;
+    }
+
+    ranges
+}
