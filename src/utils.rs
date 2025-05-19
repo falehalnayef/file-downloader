@@ -149,3 +149,17 @@ pub fn combine_chunks(filename: &str, total_parts: usize) -> Result<(), Box<dyn 
     println!("✅ Successfully combined into '{}'", filename);
     Ok(())
 }
+
+pub fn download_whole_file(url: &str, filename: &str) -> Result<(), Box<dyn Error>> {
+    let client = Client::new();
+
+    let response = client.get(url).send()?.error_for_status()?;
+
+    let content = response.bytes()?;
+    let mut file = File::create(filename)?;
+    file.write_all(&content)?;
+
+    println!("✅ Downloaded whole file as '{}'", filename);
+    Ok(())
+}
+

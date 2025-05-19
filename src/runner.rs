@@ -9,6 +9,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let file_info = utils::get_file_info(&url)?;
     if !file_info.supports_ranges {
         println!("Server does not support partial download");
+        utils::download_whole_file(&url, &file_info.file_name)?;
     }
 
     let ranges = utils::calculate_ranges(file_info.content_length, threads);
