@@ -1,9 +1,11 @@
 use url::Url;
 
 use reqwest::blocking::Client;
-use reqwest::header::{ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE};
+use reqwest::header::{ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE, RANGE};
+use std::error::Error;
+use std::fs::File;
+use std::io::{self, Write};
 use std::time::Duration;
-
 pub struct FileInfo {
     pub content_length: u64,
     pub file_name: String,
@@ -86,7 +88,7 @@ fn extract_filename_from_disposition(dispo: &str) -> Option<String> {
     })
 }
 
-pub fn calculate_ranges(size: u64, threads: u32) -> Vec<(u64, u64)> {
+pub fn calculate_ranges(size: u64, threads: usize) -> Vec<(u64, u64)> {
     let mut ranges = Vec::new();
 
     let threads = threads.max(1);
@@ -105,4 +107,25 @@ pub fn calculate_ranges(size: u64, threads: u32) -> Vec<(u64, u64)> {
     }
 
     ranges
+}
+
+pub fn download_chunk(url: &str, range: (u64, u64), part_id: usize) -> Result<(), Box<dyn Error>> {
+    let client = Client::new();
+    let range_header = format!("bytes={}-{}", range.0, range.1);
+
+    let response = client
+        .get(url)
+        .header(RANGE, range_header)
+        .send()?
+        .error_for_status()?;
+
+    let filename = format!("part_{}", part_id);
+    let mut file = File::create(&filename)?;
+
+    let content = response.bytes()?;
+    file.write_all(&content)?;
+
+    println!("Downloaded chunk {}: {} - {}", part_id, range.0, range.1);
+
+    Ok(())
 }
